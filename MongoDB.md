@@ -14,13 +14,13 @@ book_list = BookTable.query(author="Linus");
 
 ## **Drivers**
 
-A driver for a database thường là lớp tiếp theo bên dưới ORM trong đó nó thường xử lý các chức năng cấp thấp hơn nhiều khi làm việc với cơ sở dữ liệu, chẳng hạn như kết nối, cấu hình, chạy các truy vấn trên cơ sở dữ liệu bao gồm các câu lệnh SQL và truy vấn liên quan của chúng và kết quả. Nói chung, khi sử dụng a database driver interface, phần lớn tương tác với interface sẽ sử dụng SQL để giao tiếp với cơ sở dữ liệu và các driver calls để gửi dữ liệu và truy vấn, đồng thời truy xuất các tập kết quả truy vấn từ cơ sở dữ liệu.
+A driver for a database thường là lớp tiếp theo bên dưới ORM trong đó nó thường xử lý các chức năng cấp thấp hơn nhiều khi làm việc với cơ sở dữ liệu, chẳng hạn như kết nối, cấu hình, chạy các truy vấn trên cơ sở dữ liệu bao gồm các câu lệnh SQL và truy vấn liên quan của chúng và kết quả. Nói chung, khi sử dụng database driver interface, phần lớn tương tác với interface sẽ sử dụng SQL để giao tiếp với cơ sở dữ liệu và các driver calls để gửi dữ liệu và truy vấn, đồng thời truy xuất các tập kết quả truy vấn từ cơ sở dữ liệu.
 
 ## ORMs vs Drivers
 
 ## Schema
 
-Schema là một JSON Object xác định cấu trúc và nội dung dữ liệu.
+Mongoose ‘schema’ là một cấu trúc dữ liệu tài liệu (hoặc shapeg của tài liệu) được thực thi thông qua application layer.
 
 ```php
 var mongoose = require("mongoose");
@@ -588,4 +588,122 @@ Thứ tự sắp xếp index trong single field là không quan trọng vì mong
 
 MongoDB cũng hỗ trợ đánh index trên nhiều field. Lưu ý thứ tự của các field được đánh index điều có ý nghĩa. Ví dụ như compound index {name: 1, userid: -1}, đầu tiên MongoDB sẽ sắp sắp index theo name, sau đó với các name có cùng giá trị tiến hành sắp xếp theo userid.
 
+### **Tạo index trong mongoose**
+
+```php
+  var animalSchema = new Schema({
+    name: String,
+    type: String,
+    tags: { type: [String], index: true } // field level
+  });
+
+  animalSchema.index({ name: 1, type: -1 }); // index() method
+```
+
 ## Aggregation
+
+Aggregation framework là một truy vấn nâng cao của MongoDb, cho phép thực hiện tính toán , xử lý và kết hợp từ nhiều document(tương tự các bảng trong SQL) để cho ra thông tin cần thiết.
+
+Khi thực hiện theo tác với Aggregation framework , về nguyên tắc Aggregation sẽ thực hiện xử lý dựa theo các aggregation pipeline. Mỗi step thực hiện một tính toán duy nhất trong các dữ liệu đầu vào và tạo dữ liệu đầu ra.
+
+Cú pháp cơ bản của phương thức aggregate()
+
+```php
+>db.COLLECTION_NAME.aggregate(AGGREGATE_OPERATION)
+```
+
+Một số Operation cơ bản trong Aggregation :
+
+* $project : chỉ định các field mong muốn truy vấn.
+
+Cú pháp:
+
+```php
+{ $project: { <specification(s)> } }
+
+Ex:
+db.Customer.aggregate( [ { $project : { address : 1 , city : 1 , state: 1 } } ] )
+```
+
+| Form | Description |
+| ------------ | ---- |
+| field: <1 or true> | Chỉ định bao gồm 1 trường, tất cả integer khác không => true |
+| _id: <0 or false> | Chỉ định việc loại bỏ trường _id. Để loại trừ một trường có điều kiện, hãy sử dụng biến $$Remove thay thế |
+| field: expression | Thêm trường mới hoặc đặt lại giá trị của trường hiện có. Nếu biểu thức đánh giá là $$ REMOVE, trường sẽ bị loại trừ trong đầu ra. |
+| < field > :<0 or false> | Chỉ định loại trừ một trường. Để loại trừ một trường có điều kiện, hãy sử dụng biến $$ REMOVE thay thế. Nếu bạn chỉ định loại trừ trường không phải _id, bạn không thể sử dụng bất kỳ trường nào khác $project specification forms. |
+
+* $match : chọn document mong muốn truy vấn.
+
+Cú pháp:
+
+```php
+{ $match: { <query> } }
+
+Ex:
+db.Customer.aggregate(
+    [ { $match : { city : "Salem" } } ]
+);
+```
+
+* **$limit**: giới hạn số lượng document
+
+Cú pháp:
+
+```php
+db.Customer.aggregate([
+    { $limit : 2 }
+]);
+
+* $skip : bỏ qua document nhất định
+* $group: nhóm các document theo điều kiện nhất định
+
+Cú pháp:
+
+```php
+{
+  $group:
+    {
+      _id: <expression>, // Group By Expression
+      <field1>: { <accumulator1> : <expression1> },
+      ...
+    }
+ }
+
+Ex:
+db.Customer.aggregate([
+  {
+    $group : {
+       _id : "$state",
+       count: { $sum: 1 }
+    }
+  }
+ ])
+```
+
+* **$sort**: sắp xếp document
+
+Cú pháp:
+
+```php
+{ $sort: { <field1>: <sort order>, <field2>: <sort order> ... }}
+
+Ex:
+db.Customer.aggregate(
+   [
+     { $sort : { postal_code : 1, fed_id: -1 } },
+     { $limit: 2 }
+   ]
+)
+```
+
+* $unwind : thực hiện thao tác mở rộng trên một mảng , tạo một ouput document cho mỗi giá trị trong mảng đó
+* $out : ghi kết quả sau khi thực hiện trên pipeline vào một collection. (chỉ áp dụng đối với version 2.6 trở đi)
+
+Bảng so sánh giữa SQL và aggregation framework :
+| SQL Command | Aggregation framework operator|
+|---|---|
+| Select | $project $group function: $sum, $min, $avg,...|
+| From | db.collection.aggregate(...) |
+| Join | $unwind |
+| GroupBy | $group |
+| Having | $macth |
