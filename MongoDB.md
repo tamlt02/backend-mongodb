@@ -94,7 +94,7 @@ Animal.findOne().byName('fido').exec(function(err, animal) {
 });
 ```
 
-Schema Type
+### Schema Type
 
 * String
 
@@ -117,13 +117,20 @@ const file1 = new Data({ binData: 'test'}); // {"type":"Buffer","data":[116,101,
 
 * Boolean
 * Mixed
-* ObjectId: là type đặc biệt, thường được sử dụng cho identiters duy nhất
+* ObjectId: là type đặc biệt, thường được sử dụng cho identiters duy nhất.
 
 ```php
 const carSchema = new mongoose.Schema({ driver: mongoose.ObjectId });
 ```
 
 Object là 1 class và Objects là Objects. Nhưng thường thể hiện dạng chuỗi, để convert ObjectId to String sử dụng toString()
+
+Một ObjectId là một kiểu BSON (12 byte) có cấu trúc như sau:
+
+* 4 byte đầu tiên biểu diễn số giây từ UNIX Epoch.
+* A 3 byte tiếp theo là id của máy.
+* A 2 byte kế tiếp là process id.
+* Và 3 byte cuối cùng là một giá trị đếm ngẫu nhiên.
 
 ```php
 const Car = mongoose.model('Car', carSchema);
@@ -567,6 +574,59 @@ MongoDB là một cơ sở dữ liệu mã nguồn mở và là cơ sở dữ li
 NoSQL là một thuật ngữ chung chung được sử dụng để mô tả bất kỳ kho dữ liệu nào không sử dụng cách tiếp cận kế thừa của các bảng dữ liệu liên quan.
 Lưu trữ dữ liệu của mình một cách có tổ chức, nhưng không lưu trữ các hàng và cột.
 Dữ liệu trong MongoDB được lưu trữ dưới dạng document. Những dữ liệu được lưu trong colletions
+
+### **So sánh RDBMS và MongoDB**
+
+| No. | Key | SQL | NoSQL|
+| --- | --- |---|---|
+| 1 | Concept | RDBMS là một hệ quản trị cơ sở dữ liệu quan hệ và hoạt động trên cơ sở dữ liệu quan hệ. | MongoDB là một hệ quản trị cơ sở dữ liệu hướng tài liệu, phi quan hệ và hoạt động trên cơ sở dữ liệu dựa trên tài liệu. |
+| 2 | Hiearchical | Khó lưu trữ dữ liệu phân cấp. | Có hỗ trợ sẵn có để lưu trữ dữ liệu thứ cấp. |
+| 3 | Scalablity | RDBMS có thể mở rộng theo chiều dọc. Hiệu suất tăng khi tăng RAM. | MongoDB cũng có thể mở rộng theo chiều ngang. Hiệu suất của nó tăng lên khi bổ sung bộ xử lý. |
+| 4 | Schema | Schema cần được xác định trong RDBMS trước khi sử dụng cơ sở dữ liệu. | Schema có thể được tạo và truy cập động trong MongoDB. |
+| 5 | SQL Injection(1) | Dễ bị tổn thương SQL Injection attack | Không thể SQL Injection. |
+| 6 | Principle | Tuân theo nguyên tắc ACID, Atomicity, Consistency, Isolation, and Durability. | Tuân theo định lý CAP, tính nhất quán, tính khả dụng và dung sai phân vùng. |
+| 7 | Basis | Database sử dụng Row| Databse sử dụng Document |
+| 8 | Basis | Database sử dụng Column| Database sử dụng Field |
+| 9 | Performance | RDBMS chậm hơn trong việc xử lý dữ liệu lớn. | MongoDB rất nhanh trong việc xử lý dữ liệu phân cấp lớn. |
+| 10 | Joins | RDBMS hỗ trợ các phép nối phức tạp. | MongoDB không hỗ trợ cho các phép nối phức tạp. |
+| 11 | JavaScript Client | RDBMS không cung cấp Javascript based client để truy vấn cơ sở dữ liệu. | MongoDB cung cấp Javascript based client để truy vấn cơ sở dữ liệu. |
+| 12 | Query Language | RDBMS uses SQL to query database. | MongoDB uses BSON to query database.|
+
+1. SQL Injection là một kỹ thuật lợi dụng những lỗ hổng về câu truy vấn của các ứng dụng. Được thực hiện bằng cách chèn thêm một đoạn SQL để làm sai lệnh đi câu truy vấn ban đầu, từ đó có thể khai thác dữ liệu từ database. SQL injection có thể cho phép những kẻ tấn công thực hiện các thao tác như một người quản trị web, trên cơ sở dữ liệu của ứng dụng.
+
+### **So sánh SQL và NoSQL**
+
+| SQL | NoSQL|
+|---|---|
+| Hệ quản trị cơ sỡ dữ liệu quan hệ RDBMS (Relational Database Management System)  | Hệ quản trị cơ sơ dữ liệu phân tàn hoặc không ràng buộc |
+| Schema cố định hoặc tĩnh hoặc được xác định trước (1) | Schema động (2) |
+| Không phù hợp để lưu trữ dữ liệu phân cấp(3). | Phù hợp để lưu trữ dữ liệu phân cấp |
+| Phù hợp nhất cho các query phức tạp | Không tốt cho các query phức tạp |
+| Có thể mở rộng theo chiều dọc | Có thể mở rộng theo chiều ngang |
+| Tuân theo thuộc tính ACID | Tuân theo CAP (tính nhất quán, tính khả dụng, dung sai phân vùng) |
+| MySQL, PostgreSQL, Oracle, MS-SQL Server | MongoDB, GraphQL, HBase, Neo4j, Cassandra etc |
+Note:
+
+1. Shema tĩnh: mỗi column trong table phải được định nghĩa từ trước khi tạo bảng, và mỗi khi dữ liệu được thêm vào một row thì các column của nó phải có giá trị (chấp nhận giá trị NULL). Các schema có thể được thay đổi sau đó (alter table), nhưng sự thay đổi này phải nằm ở phía Database và khi DB thực hiện thay đổi này nó sẽ offline tạm thời.
+2. Schema là động (dynamic) có nghĩa là ta không cần phải định nghĩa một schema nào trước mà schema sẽ được dựa vào cấu trúc của records được đưa vào.
+3. Mô hình cơ sở dữ liệu phân cấp (tiếng Anh: hierarchical database model) là một loại mô hình dữ liệu, trong đó dữ liệu được tổ chức thành cấu trúc dạng cây. Dữ liệu được lưu trữ dưới dạng các bản ghi (record) kết nối với nhau thông qua các liên kết (link). Mỗi bản ghi là một tập hợp các trường (field), mỗi trường chỉ chứa một giá trị. Kiểu (type) của một bản ghi xác định bản ghi đó sẽ chứa những trường nào.
+   * Ưu điểm:
+     * Dễ sử dụng. Việc tổ chức dữ liệu một-nhiều làm cho việc duyệt cơ sở dữ liệu trở nên đơn giản và nhanh chóng, lý tưởng cho các trường hợp sử dụng như menu thả xuống của trang web hoặc thư mục máy tính trong các hệ thống như Microsoft Windows OS.
+     * Do sự tách biệt của các bảng khỏi cấu trúc lưu trữ vật lý, thông tin có thể dễ dàng được thêm vào hoặc xóa mà không ảnh hưởng đến toàn bộ cơ sở dữ liệu.
+     * Và hầu hết các ngôn ngữ lập trình chính đều cung cấp chức năng đọc cơ sở dữ liệu cấu trúc cây.
+   * Nhược điểm
+     * Bản chất không linh hoạt. Cấu trúc một-nhiều không lý tưởng cho các cấu trúc phức tạp vì nó không thể mô tả các mối quan hệ trong đó mỗi nút con có nhiều nút cha.
+     * Ngoài ra, tổ chức dữ liệu dạng cây yêu cầu tìm kiếm tuần tự từ trên xuống dưới, việc này tốn thời gian và yêu cầu lưu trữ lặp đi lặp lại dữ liệu trong nhiều thực thể khác nhau, điều này có thể là dư thừa.
+4. ACID (viết tắt của Atomicity, Consistency, Isolation, Durability) là một khái niệm cơ sở dữ liệu mà các chuyên gia thường tìm kiếm khi đánh giá các cơ sở dữ liệu và kiến trúc ứng dụng. Đối với một cơ sở dữ liệu đáng tin cậy tất cả bốn thuộc tính cần đạt được.
+   1. Atomicity là một đề xuất tất cả hoặc không có gì. Tính chất này đảm bảo rằng khi một giao dịch liên quan đến hai hay nhiều xử lý, hoặc là tất cả các xử lý được thực hiện hoặc không có xử lý được thực hiện.
+   2. Consistency đảm bảo rằng một giao dịch không bao giờ được thông qua cơ sở dữ liệu của bạn trong tình trạng dở dang. Tính chất này, hoặc là tạo ra toàn bộ trạng thái mới hoặc rollback tất cả các xử lý để về trạng thái ban đầu, nhưng không bao giờ thông qua cơ sở dữ liệu trong trạng thái dở dang.
+   3. Isolation giữ giao dịch tách rời nhau cho đến khi chúng đã hoàn tất. Tính chất này đảm bảo rằng hai hoặc nhiều giao dịch không bao giờ được trộn lẫn với nhau, tạo ra dữ liệu không chính xác và không phù hợp.
+   4. Durability đảm bảo rằng cơ sở dữ liệu sẽ theo dõi các thay đổi cấp phát trong một cách mà các máy chủ có thể phục hồi từ một sự kết thúc bất thường. Tính chất này đảm bảo rằng trong trường hợp thất bại hay dịch vụ khởi động lại các dữ liệu có sẵn trong  trước khi gặp lỗi.
+5. CAP: một hệ thống phân tán chỉ có thể có được hai trong ba đặc tính mong muốn: Tính nhất quán (Consistency), tính khả dụng (Availibility) và dung sai phân vùng (Partition tolerance).
+   1. Tính nhất quán: có nghĩa là tại cùng một thời điểm, dữ liệu mà tất cả các máy khách nhìn thấy phải là giống nhau, bất kể nó kết nối với node nào. Để điều này xảy ra, bất cứ khi nào dữ liệu được ghi vào một node, nó phải được chuyển tiếp hoặc sao chép ngay lập tức tới tất cả các node khác trong hệ thống trước khi việc ghi được coi là "thành công".
+   2. Tính khả dụng: có nghĩa là bất kỳ máy khách nào đưa ra yêu cầu dữ liệu đều nhận được phản hồi, ngay cả khi một hoặc nhiều node bị ngừng hoạt động. Hay nói cách khác — đối với bất kỳ yêu cầu nào, tất cả các node đang hoạt động trong hệ thống phân tán phải trả về phản hồi hợp lệ.
+   3. Dung sai phân vùng: Phân vùng là sự đứt gãy liên lạc trong hệ thống phân tán, hay cụ thể hơn, là việc kết nối giữa hai node bị mất hoặc tạm thời bị trì hoãn. Dung sai phân vùng có nghĩa là cluster phải duy trì được trạng thái hoạt động dù cho có bất kỳ sự cố giao tiếp nào giữa các node trong hệ thống.
+   4. MongoDB là một kho lưu trữ dữ liệu CP — nó giải quyết các phân vùng mạng bằng cách duy trì tính nhất quán, nhưng không đảm bảo tính khả dụng.
 
 ## Index
 
