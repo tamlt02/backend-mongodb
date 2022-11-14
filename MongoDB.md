@@ -511,6 +511,7 @@ const storySchema = Schema({
  
 const Story = mongoose.model('Story', storySchema);
 const Person = mongoose.model('Person', personSchema);
+
 ```
 
 Chúng ta tạo 2 Model. Model Person của chúng ta có trường stories là một mảng ObjectId, ref là một option để cho mongoose có thể hiểu là nó liên kết với model nào và ở đây là Story. All _id của mà chúng ta lưu ở trường stories phải nằm trong_id của Story model. ObjectId, Number, String và Buffer đều có thể là ref, nhưng để tối ưu tốc độ truy vấn thì chúng ta lên dùng ObjectId.
@@ -566,6 +567,132 @@ Story.
 }
   ```
 
+### 3. Populate nhiều path
+
+```php
+Story.
+  find(...).
+  populate('fans').
+  populate('author').
+  exec();
+or
+
+Story.
+  find(...).
+  populate({path: 'fans'}).
+  populate({path: 'author'}).
+  exec();
+or
+
+Story.
+  find(...).
+  populate([{path: 'fans'}, {path: 'author'}]).
+  exec();
+```
+
+Thêm các options và query
+Vd: tìm kiếm story có tác giả tuổi lớn hơn hoặc bằng 21, lấy tối đa 5 người, và chỉ lấy mỗi tên
+
+```php
+Story.
+  find(...).
+  populate({
+    path: 'fans',
+    match: { age: { $gte: 21 }},
+    select: 'name -_id',
+    options: { limit: 5 }
+  }).
+  exec();
+```
+
+### 4. Populating nhiều cấp
+
+```php
+var userSchema = new Schema({
+  name: String,
+  friends: [{ type: ObjectId, ref: 'User' }]
+});
+
+// Query
+User.
+  findOne({ name: 'Val' }).
+  populate({
+    path: 'friends',
+    populate: { path: 'friends' }
+  });
+```
+
+### 5. Populating thông qua database khác nhau
+
+```php
+var eventSchema = new Schema({
+  name: String,
+  conversation: ObjectId
+});
+var conversationSchema = new Schema({
+  numMessages: Number
+});
+
+// 2 database khác nhau
+var db1 = mongoose.createConnection('localhost:27000/db1');
+var db2 = mongoose.createConnection('localhost:27001/db2');
+
+var Event = db1.model('Event', eventSchema);
+var Conversation = db2.model('Conversation', conversationSchema);
+
+// Thông thường chúng ta không thể populate hai model vơi nhau được, trừ khi bạn chỉ rõ model
+Event.
+  find().
+  populate({ path: 'conversation', model: Conversation }).
+  exec(function(error, docs) { });
+```
+
+### 6. Liên kết động với refPath
+
+Mongoose cho phép liên kết với nhiều collections thông qua trường giá trong model.
+
+```php
+const commentSchema = new Schema({
+  body: { type: String, required: true },
+  on: {
+    type: Schema.Types.ObjectId,
+    required: true,
+    refPath: 'onModel'
+  },
+  onModel: {
+    type: String,
+    required: true,
+    enum: ['BlogPost', 'Product']
+  }
+});
+
+const Product = mongoose.model('Product', new Schema({ name: String }));
+const BlogPost = mongoose.model('BlogPost', new Schema({ title: String }));
+const Comment = mongoose.model('Comment', commentSchema);
+
+// refPath thì có thể cấu hình thông qua model Mongoose
+const book = await Product.create({ name: 'The Count of Monte Cristo' });
+const post = await BlogPost.create({ title: 'Top 10 French Novels' });
+
+const commentOnBook = await Comment.create({
+  body: 'Great read',
+  on: book._id,
+  onModel: 'Product'
+});
+
+const commentOnPost = await Comment.create({
+  body: 'Very informative',
+  on: post._id,
+  onModel: 'BlogPost'
+});
+
+// The below `populate()` works even though one comment references the
+// 'Product' collection and the other references the 'BlogPost' collection.
+const comments = await Comment.find().populate('on').sort({ body: 1 });
+comments[0].on.name; // "The Count of Monte Cristo"
+comments[1].on.title; // "Top 10 French Novels"
+```
+
 ## Design relationship
 
 ## MongoDB is DB type ?, compare with DB other
@@ -574,6 +701,68 @@ MongoDB là một cơ sở dữ liệu mã nguồn mở và là cơ sở dữ li
 NoSQL là một thuật ngữ chung chung được sử dụng để mô tả bất kỳ kho dữ liệu nào không sử dụng cách tiếp cận kế thừa của các bảng dữ liệu liên quan.
 Lưu trữ dữ liệu của mình một cách có tổ chức, nhưng không lưu trữ các hàng và cột.
 Dữ liệu trong MongoDB được lưu trữ dưới dạng document. Những dữ liệu được lưu trong colletions
+
+### Relationship trong MongoDB
+
+Relationship có thể được mô hình hóa thông qua phương thức ***Embeded*** và ***Referenced***. Những Relationship này có thể là 1:1, 1:N, N:1, hoặc N:N.
+
+### **Embeded Relationships**
+
+Embedded documents (Tài liệu nhúng) là documents có lược đồ riêng và là 1 phần của documents khác. Hiểu đơn giản thì embedded documents là 1 field nằm trong 1 collection thay vì lưu dữ liệu kiểu References ta phải thiết kế 2 collection để thể hiện mối quan hệ One-to-Many.
+
+* Embedded documents có mọi đặc điểm như 1 model, ta có thể sử dụng validators, middleware,...
+* Embedded documents được khai báo dưới dạng array trong collection chứa nó, nó sẽ có 1 lược đồ riêng nhưng nằm trong cùng 1 file với collection chính.
+
+```php
+var Projects = new Schema({
+  title: String,
+  unit: String
+})
+
+
+var Student = new Schema({
+  name: String,
+  age: Number,
+  projects: [Projects]
+})
+
+mongoose.model('Student', Student);
+```
+
+Điểm hạn chế ở đây là, nếu Document được nhúng tiếp tục tăng kích cỡ quá nhiều, nó sẽ ảnh hưởng đến hiệu suất đọc/ghi.
+
+### **References**
+
+References lưu trữ các mối quan hệ giữa dữ liệu bằng cách link từ collection này sang collection khác (tạo tham chiếu đến thằng cha) thông qua ObjectIds.
+
+Thuộc tính ref phải khớp chính xác với tên model trong định nghĩa model
+
+```php
+//Project.js
+var Project = new Schema({
+  title: String,
+  unit: String,
+  student: { type:Schema.ObjectId, ref: "Student" }
+});
+
+mongoose.model('Project', Project);
+
+//Student.js
+var Student = new Schema({
+  name: String,
+  age: Number
+});
+
+mongoose.model('Student', Student);
+```
+
+Compare Embedded Document and References
+
+| | Embedded Documents | References  |
+|---|---|---|
+| Ưu điểm | Truy vấn và cập nhật dữ liệu dễ dàng. | Có thể cung cấp linh hoạt hơn với truy vấn. |
+| | Đạt hiệu suất cao trong việc đọc dữ liệu | Đạt hiệu suất cao trong việc ghi dữ liệu |
+| Nhược điểm | Kích thước document lớn ảnh hưởng đến việc ghi dữ liệu vì mỗi document không thể vượt quá 16MB | Với các hệ thống có nhiều collections thì truy vấn sẽ khó khăn hơn, yêu cầu nhiều công việc hơn |
 
 ### **So sánh RDBMS và MongoDB**
 
@@ -666,7 +855,7 @@ Aggregation framework là một truy vấn nâng cao của MongoDb, cho phép th
 
 Khi thực hiện theo tác với Aggregation framework , về nguyên tắc Aggregation sẽ thực hiện xử lý dựa theo các aggregation pipeline. Mỗi step thực hiện một tính toán duy nhất trong các dữ liệu đầu vào và tạo dữ liệu đầu ra.
 
-Cú pháp cơ bản của phương thức aggregate()
+### Cú pháp cơ bản của phương thức aggregate()
 
 ```php
 >db.COLLECTION_NAME.aggregate(AGGREGATE_OPERATION)
@@ -767,3 +956,67 @@ Bảng so sánh giữa SQL và aggregation framework :
 | Join | $unwind |
 | GroupBy | $group |
 | Having | $macth |
+
+## **JSON vs JSON Object**
+
+### JSON
+
+JSON là viết tắt của JavaScript Object Notation, là một kiểu định dạng dữ liệu tuân theo một quy luật nhất định mà hầu hết các ngôn ngữ lập trình hiện nay đều có thể đọc được. JSON là một tiêu chuẩn mở để trao đổi dữ liệu trên web.
+
+JavaScript Object và JSON không giống nhau.
+
+| JSON | JavaScript Object |
+|---|---|
+| Key trong cặp khóa / giá trị phải nằm trong dấu ngoặc kép. | Key trong cặp khóa / giá trị có thể không có dấu ngoặc kép.|
+| JSON không thể chứa function | JSON có thể chứa function |
+| JSON có thể được tạo và sử dụng bởi các ngôn ngữ lập trình khác. | JavaScript Object chi có thể được sử dụng bởi JavaScript |
+
+Chuyển đổi JSON -> JavaScript Object
+
+```php
+JSON.parse()
+// json object
+const jsonData = '{ "name": "John", "age": 22 }';
+
+// converting to JavaScript object
+const obj = JSON.parse(jsonData);
+
+// accessing the data
+console.log(obj.name); // John
+```
+
+Chuyển đổi JavaScript Object -> JSON
+
+```php
+JSON.stringify()
+// JavaScript object
+const jsonData = { "name": "John", "age": 22 };
+
+// converting to JSON
+const obj = JSON.stringify(jsonData);
+
+// accessing the data
+console.log(obj); // "{"name":"John","age":22}"
+```
+
+## Test
+
+### Before BeforeEach
+
+BeforeThực thi trước khi chạy test case.
+
+BeforeEach: Thực thi trước mỗi trường hợp test case
+
+### After AfterEach
+
+after: Thực thi sau khi chạy thử nghiệm.
+
+afterEach () là một hook hoặc phương thức toàn cục do Mocha cung cấp sẽ thực thi sau mỗi trường hợp test case trong một khối. Nó thường được sử dụng để dọn dẹp sau các trường hợp test case.
+
+```php
+Syntax
+afterEach(name, fn)
+
+name: Optional string
+fn: Function to run after each test case
+```
